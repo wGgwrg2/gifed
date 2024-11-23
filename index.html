@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teachable Machine Image Model</title>
+    
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@latest/dist/teachablemachine-image.min.js"></script>
+    <style>
+        /* 전반적인 스타일링 */
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #f4f7f6;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            color: #333;
+            position: relative; /* 라이언 이미지 위치를 위한 relative 위치 지정 */
+        }
+
+        /* 컨테이너 스타일 */
+        #container {
+            width: 100%;
+            max-width: 900px;
+            background-color: #fff;
+            border-radius: 15px;
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.1);
+            padding: 40px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+        }
+
+        /* 제목 스타일 */
+        h1 {
+            font-size: 2.5rem;
+            color: #4CAF50;
+            margin-bottom: 20px;
+        }
+
+        /* 버튼 스타일 */
+        button {
+            background-color: #4CAF50;
+            color: #fff;
+            border: none;
+            padding: 15px 25px;
+            font-size: 1.2rem;
+            border-radius: 8px;
+            cursor: pointer;
+            margin-bottom: 30px;
+            transition: background-color 0.3s;
+            font-weight: bold;
+        }
+
+        button:hover {
+            background-color: #45a049;
+        }
+
+        /* 웹캠 캡처 부분 */
+        #webcam-container {
+            border: 5px solid #4CAF50;
+            border-radius: 10px;
+            padding: 10px;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        /* 예측 결과 부분 */
+        #label-container {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .label {
+            background-color: #f9f9f9;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 12px;
+            margin: 8px 0;
+            width: 90%;
+            text-align: left;
+            font-size: 1.2rem;
+            color: #333;
+            box-shadow: 0 3px 6px rgba(0, 0, 0, 0.1);
+            transition: transform 0.2s;
+        }
+
+        .label:hover {
+            transform: scale(1.05);
+        }
+
+        /* 예측 확률 스타일링 */
+        .probability {
+            font-weight: bold;
+            color: #4CAF50;
+        }
+
+        /* 귀여운 라이언 이미지 스타일 */
+        #ryan {
+            position: absolute;
+            bottom: 10%;
+            right: 5%;
+            width: 150px;
+            height: 150px;
+            z-index: 10;
+            animation: bounce 2s infinite;
+        }
+
+        /* 라이언 이미지 애니메이션 (뛰는 효과) */
+        @keyframes bounce {
+            0%, 100% {
+                transform: translateY(0);
+            }
+            50% {
+                transform: translateY(-20px);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="container">
+        <h1>Teachable Machine Image Model</h1>
+        <button type="button" onclick="init()">Start</button>
+        <div id="webcam-container"></div>
+        <div id="label-container"></div>
+    </div>
+
+    <!-- 귀여운 라이언 이미지 추가 -->
+    <img id="ryan" src="https://upload.wikimedia.org/wikipedia/commons/thumb/c/c3/Ryan_the_Kakao_Friends_character.png/800px-Ryan_the_Kakao_Friends_character.png" alt="Ryan the Kakao Character">
+
+    <script type="text/javascript">
+        const URL = "https://teachablemachine.withgoogle.com/models/k6vh5NrOEN/";
+
+        let model, webcam, labelContainer, maxPredictions;
+
+        // 모델 및 웹캠 초기화
+        async function init() {
+            const modelURL = URL + "model.json";
+            const metadataURL = URL + "metadata.json";
+
+            // 모델과 메타데이터 불러오기
+            model = await tmImage.load(modelURL, metadataURL);
+            maxPredictions = model.getTotalClasses();
+
+            const flip = true; // 웹캠 화면 뒤집기
+            webcam = new tmImage.Webcam(200, 200, flip); // 웹캠 크기 설정
+            await webcam.setup(); // 웹캠 설정
+            await webcam.play(); // 웹캠 시작
+            window.requestAnimationFrame(loop);
+
+            // 웹캠 캔버스를 DOM에 추가
+            document.getElementById("webcam-container").appendChild(webcam.canvas);
+            labelContainer = document.getElementById("label-container");
+
+            // 예측 결과를 보여줄 div 생성
+            for (let i = 0; i < maxPredictions; i++) {
+                const labelDiv = document.createElement("div");
+                labelDiv.classList.add("label");
+                labelContainer.appendChild(labelDiv);
+            }
+        }
+
+        // 웹캠을 지속적으로 업데이트
+        async function loop() {
+            webcam.update();
+            await predict();
+            window.requestAnimationFrame(loop);
+        }
+
+        // 예측 실행
+        async function predict() {
+            const prediction = await model.predict(webcam.canvas);
+            for (let i = 0; i < maxPredictions; i++) {
+                const classPrediction = prediction[i].className + ": " + prediction[i].probability.toFixed(2);
+                labelContainer.childNodes[i].innerHTML = classPrediction;
+            }
+        }
+    </script>
+</body>
+</html>
